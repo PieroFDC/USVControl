@@ -85,10 +85,10 @@ int main() {
 //     std::pair<float, float> center;
 
 //     // cv::VideoCapture cap("http://192.168.1.38:8080/video");
-//     if (!cap.isOpened()) {
-//         printf("Error al abrir la cámara.\n");
-//         return -1;
-//     }
+    // if (!cap.isOpened()) {
+    //     printf("Error al abrir la cámara.\n");
+    //     return -1;
+    // }
 
 //     while (true) {
 //         // Capturar frame de la cámara
