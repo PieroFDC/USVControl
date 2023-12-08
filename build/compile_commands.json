@@ -1,7 +1,0 @@
-[
-{
-  "directory": "/home/piero/Documents/USV/USVControl/build",
-  "command": "/usr/bin/g++ -DBOOST_ALL_NO_LIB -DBOOST_ATOMIC_DYN_LINK -DBOOST_SYSTEM_DYN_LINK -DBOOST_THREAD_DYN_LINK -I/home/piero/Documents/Libs/fuzzylite/fuzzylite -I/home/piero/Documents/USV/USVControl/include/ncnn -I/home/piero/Documents/USV/USVControl/include -isystem /usr/include/opencv4 -isystem /home/piero/Documents/Libs/ncnn/build/install/include/ncnn -g -fPIE -fopenmp -std=gnu++17 -o CMakeFiles/USVControl.dir/src/main.cpp.o -c /home/piero/Documents/USV/USVControl/src/main.cpp",
-  "file": "/home/piero/Documents/USV/USVControl/src/main.cpp"
-}
-]

@@ -1,1 +1,0 @@
-/usr/bin/g++ -g -rdynamic CMakeFiles/tu_programa.dir/src/main.cpp.o -o tu_programa  /usr/lib/x86_64-linux-gnu/libboost_system.so.1.74.0 /usr/lib/x86_64-linux-gnu/libboost_thread.so.1.74.0 /usr/lib/x86_64-linux-gnu/libboost_atomic.so.1.74.0 
