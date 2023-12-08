@@ -1,0 +1,3 @@
+/home/piero/Documents/USV/USVControl/build/CMakeFiles/USVControl.dir
+/home/piero/Documents/USV/USVControl/build/CMakeFiles/edit_cache.dir
+/home/piero/Documents/USV/USVControl/build/CMakeFiles/rebuild_cache.dir

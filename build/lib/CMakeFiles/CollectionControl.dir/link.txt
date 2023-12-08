@@ -1,0 +1,1 @@
+/usr/bin/g++ -fPIC -g -shared -Wl,-soname,libCollectionControl.so -o libCollectionControl.so CMakeFiles/CollectionControl.dir/CollectionControl/CollectionControl.cpp.o  -Wl,-rpath,/home/piero/Documents/Libs/fuzzylite/fuzzylite/debug/bin /home/piero/Documents/Libs/fuzzylite/fuzzylite/debug/bin/libfuzzylite-debug.so 

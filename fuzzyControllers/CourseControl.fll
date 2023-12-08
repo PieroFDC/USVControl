@@ -1,0 +1,54 @@
+Engine: FuzzyController
+InputVariable: EO
+  enabled: true
+  range: -180.0 180.0
+  lock-range: false
+  term: EO_MMN Sigmoid -15 -2
+  term: EO_MN Gaussian -11 1.5
+  term: EO_N Gaussian -5 1.5
+  term: EO_Z Gaussian 0 1
+  term: EO_P Gaussian 5 1.5
+  term: EO_MP Gaussian 11 1.5
+  term: EO_MMP Sigmoid 15 2
+
+OutputVariable: FMI
+  enabled: true
+  range: 1000 2000
+  lock-range: false
+  aggregation: Maximum
+  defuzzifier: Centroid 100
+  default: nan
+  lock-previous: false
+  term: FMI_RM Sigmoid 1200 -0.1
+  term: FMI_RS Gaussian 1300 50
+  term: FMI_Z Gaussian 1500 40
+  term: FMI_FS Gaussian 1700 50
+  term: FMI_FM Sigmoid 1800 0.1
+
+OutputVariable: FMD
+  enabled: true
+  range: 1000 2000
+  lock-range: false
+  aggregation: Maximum
+  defuzzifier: Centroid 100
+  default: nan
+  lock-previous: false
+  term: FMD_RM Sigmoid 1200 -0.1
+  term: FMD_RS Gaussian 1300 50
+  term: FMD_Z Gaussian 1500 40
+  term: FMD_FS Gaussian 1700 50
+  term: FMD_FM Sigmoid 1800 0.1
+
+RuleBlock: mamdani
+  enabled: true
+  conjunction: none
+  disjunction: none
+  implication: AlgebraicProduct
+  activation: General
+  rule: if EO is EO_MMN then FMI is FMI_FM and FMD is FMD_RM
+  rule: if EO is EO_MN then FMI is FMI_FS and FMD is FMD_RS
+  rule: if EO is EO_N then FMI is FMI_FS and FMD is FMD_Z
+  rule: if EO is EO_Z then FMI is FMI_FM and FMD is FMD_FM
+  rule: if EO is EO_P then FMI is FMI_Z and FMD is FMD_FS
+  rule: if EO is EO_MP then FMI is FMI_RS and FMD is FMD_FS
+  rule: if EO is EO_MMP then FMI is FMI_RM and FMD is FMD_FM

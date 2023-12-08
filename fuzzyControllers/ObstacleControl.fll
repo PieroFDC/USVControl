@@ -1,0 +1,44 @@
+Engine: FuzzyLiteController
+InputVariable: MA
+  enabled: true
+  range: -180.0 180.0
+  lock-range: false
+  term: very_left Trapezoid 70 90 180 180
+  term: left Trapezoid 0 10 70 80
+  term: center Triangle -5 0 5
+  term: right Trapezoid -80 -70 -10 0
+  term: very_right Trapezoid -180 -180 -90 -70
+
+OutputVariable: FMI
+  enabled: true
+  range: 1100 1900
+  lock-range: false
+  aggregation: Maximum
+  defuzzifier: Centroid 100
+  default: nan
+  lock-previous: false
+  term: reverse Triangle 1100 1100 1500
+  term: forward Triangle 1500 1900 1900
+
+OutputVariable: FMD
+  enabled: true
+  range: 1100 1900
+  lock-range: false
+  aggregation: Maximum
+  defuzzifier: Centroid 100
+  default: nan
+  lock-previous: false
+  term: reverse Triangle 1100 1100 1500
+  term: forward Triangle 1500 1900 1900
+
+RuleBlock: mamdani
+  enabled: true
+  conjunction: none
+  disjunction: none
+  implication: AlgebraicProduct
+  activation: General
+  rule: if MA is very_left then FMI is forward and FMD is forward
+  rule: if MA is left then FMI is forward and FMD is reverse
+  rule: if MA is center then FMI is reverse and FMD is forward
+  rule: if MA is right then FMI is reverse and FMD is forward
+  rule: if MA is very_right then FMI is forward and FMD is forward
