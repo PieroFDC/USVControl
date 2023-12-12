@@ -31,11 +31,11 @@
 
 int main() {
     // float inp; //
-    // std::pair<float, float> motors;
+    std::pair<float, float> motors;
 
     // CollectionController collectionController;
     // CourseController courseController;
-    // ObstacleController obstacleController;
+    ObstacleController obstacleController;
 
     // motors = collectionController.calculateMotors(20);
     // std::cout << "Motor L: " << motors.first << std::endl << "Motor R: " << motors.second << std::endl;
@@ -69,7 +69,7 @@ int main() {
     // std::cout << "Ángulo mínimo: " << result.first << ", Distancia mínima: " << result.second << std::endl;
 
 
-///////////////////// NCNN
+// ///////////////////// NCNN
 //    ObjectDetector detector(
 //         MODEL_PARAM_PATH.c_str(),
 //         MODEL_BIN_PATH.c_str(),
@@ -85,10 +85,10 @@ int main() {
 //     std::pair<float, float> center;
 
 //     // cv::VideoCapture cap("http://192.168.1.38:8080/video");
-    // if (!cap.isOpened()) {
-    //     printf("Error al abrir la cámara.\n");
-    //     return -1;
-    // }
+//     if (!cap.isOpened()) {
+//         printf("Error al abrir la cámara.\n");
+//         return -1;
+//     }
 
 //     while (true) {
 //         // Capturar frame de la cámara
@@ -116,47 +116,133 @@ int main() {
 //     cv::destroyAllWindows();
 
 
-    // Inicializar el generador de números aleatorios
-    std::random_device rd;
-    std::mt19937 gen(rd());
+    // // Inicializar el generador de números aleatorios
+    // std::random_device rd;
+    // std::mt19937 gen(rd());
 
-    // Definir el rango
-    std::uniform_int_distribution<int> distribution(1100, 1900);
+    // // Definir el rango
+    // std::uniform_int_distribution<int> distribution(1100, 1900);
 
-    // Generar dos números aleatorios
-    int numero1;
-    int numero2;
+    // // Generar dos números aleatorios
+    // int numero1;
+    // int numero2;
 
-    SerialCommunication serialComm("/dev/ttyACM0", 2000000);
+    // SerialCommunication serialComm("/dev/ttyACM0", 2000000);
 
-    SensorData sdata;
+    // SensorData sdata;
 
-    // bucle principal
+    // // bucle principal
+    // while(true) {
+    //     numero1 = distribution(gen);
+    //     numero2 = distribution(gen);
+
+    //     std::string data_to_send = "<" + std::to_string(numero1) + "," + std::to_string(numero2) + ",78.0,nrf>";
+
+    //     // // Envía datos al Arduino
+    //     serialComm.sendData(data_to_send);
+    //     std::cout << "Datos enviados: " << data_to_send << std::endl;
+
+    //     // Ejemplo de uso: Recibir datos
+    //     sdata = serialComm.receiveData();
+
+    //     // Muestra los datos leídos
+    //     // std::cout << "Datos leídos: " << receivedData << std::endl;
+    //     std::cout << "Lat: " << sdata.lat << std::endl;
+    //     std::cout << "Lon: " << sdata.lon << std::endl;
+    //     std::cout << "Speed: " << sdata.speed << std::endl;
+    //     std::cout << "Yaw: " << sdata.yaw << std::endl;
+    //     std::cout << "NRF: " << sdata.nrf << std::endl;
+    //     std::cout << "Sonic: " << sdata.sonic << std::endl;
+    //     std::cout << "Volt: " << sdata.volt << std::endl;
+    //     std::cout << "PWML: " << sdata.pwml << std::endl;
+    //     std::cout << "PWMR: " << sdata.pwmr << std::endl;
+    // }
+    std::pair<float, float> lidar_data;
+    LidarSensor lidar_sensor;
+    lidar_sensor.InitializeLidar();
     while(true) {
-        numero1 = distribution(gen);
-        numero2 = distribution(gen);
+        lidar_data = lidar_sensor.RunLidar();
+        std::cout << lidar_data.first << " : " << lidar_data.second << std::endl;
 
-        std::string data_to_send = "<" + std::to_string(numero1) + "," + std::to_string(numero2) + ",78.0,nrf>";
-
-        // // Envía datos al Arduino
-        serialComm.sendData(data_to_send);
-        std::cout << "Datos enviados: " << data_to_send << std::endl;
-
-        // Ejemplo de uso: Recibir datos
-        sdata = serialComm.receiveData();
-
-        // Muestra los datos leídos
-        // std::cout << "Datos leídos: " << receivedData << std::endl;
-        std::cout << "Lat: " << sdata.lat << std::endl;
-        std::cout << "Lon: " << sdata.lon << std::endl;
-        std::cout << "Speed: " << sdata.speed << std::endl;
-        std::cout << "Yaw: " << sdata.yaw << std::endl;
-        std::cout << "NRF: " << sdata.nrf << std::endl;
-        std::cout << "Sonic: " << sdata.sonic << std::endl;
-        std::cout << "Volt: " << sdata.volt << std::endl;
-        std::cout << "PWML: " << sdata.pwml << std::endl;
-        std::cout << "PWMR: " << sdata.pwmr << std::endl;
+        motors = obstacleController.calculateMotors(lidar_data.first);
+        std::cout << "Motor L: " << motors.first << std::endl << "Motor R: " << motors.second << std::endl;
     }
+    
 
     return 0;
 }
+
+// #include "ldlidar_driver.h"
+
+// uint64_t GetSystemTimeStamp(void) {
+//   std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> tp = 
+//     std::chrono::time_point_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now());
+//   auto tmp = std::chrono::duration_cast<std::chrono::nanoseconds>(tp.time_since_epoch());
+//   return ((uint64_t)tmp.count());
+// }
+
+// int main() {
+
+//   std::string port_name = "/dev/lidar";
+//   uint32_t serial_baudrate = 230400;
+//   ldlidar::LDType type_name = ldlidar::LDType::LD_19;
+
+//   ldlidar::LDLidarDriver* node = new ldlidar::LDLidarDriver();
+
+//   node->RegisterGetTimestampFunctional(std::bind(&GetSystemTimeStamp)); 
+
+//   node->EnableFilterAlgorithnmProcess(true);
+
+//   node->Start(type_name, port_name, serial_baudrate, ldlidar::COMM_SERIAL_MODE);
+
+//   if (node->WaitLidarCommConnect(3500)) {
+//     LDS_LOG_INFO("ldlidar communication is normal.","");
+//   } else {
+//     LDS_LOG_ERROR("ldlidar communication is abnormal.","");
+//     node->Stop();
+//   }
+
+//   ldlidar::Points2D laser_scan_points;
+  
+//   while (ldlidar::LDLidarDriver::IsOk()) {
+//     switch (node->GetLaserScanData(laser_scan_points, 1500)){
+//       case ldlidar::LidarStatus::NORMAL: {
+//         double lidar_scan_freq = 0;
+//         node->GetLidarScanFreq(lidar_scan_freq);
+
+
+//         LDS_LOG_INFO("speed(Hz):%f,size:%d,stamp_front:%lu, stamp_back:%lu",
+//           lidar_scan_freq, laser_scan_points.size(), laser_scan_points.front().stamp, laser_scan_points.back().stamp);
+
+//         //  output 2d point cloud data
+//         for (auto point : laser_scan_points) {
+//           LDS_LOG_INFO("stamp:%lu,angle:%f,distance(mm):%d,intensity:%d", 
+//             point.stamp, point.angle, point.distance, point.intensity);
+//         }
+        
+//         break;
+//       }
+//       case ldlidar::LidarStatus::DATA_TIME_OUT: {
+//         LDS_LOG_ERROR("ldlidar publish data is time out, please check your lidar device.","");
+//         node->Stop();
+//         break;
+//       }
+//       case ldlidar::LidarStatus::DATA_WAIT: {
+//         break;
+//       }
+//       default: {
+//         break;
+//       }
+//     }
+
+//     usleep(1000 * 100);  // sleep 100ms  == 10Hz
+//   }
+
+//   node->Stop();
+//   // LidarPowerOff();
+
+//   delete node;
+//   node = nullptr;
+
+//   return 0;
+// }

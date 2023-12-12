@@ -64,8 +64,6 @@ public:
             std::cerr << "Error receiving data: " << e.what() << std::endl;
         }
 
-        std::cout << "Datos recibidos: " << data_from_arduino << std::endl;
-
         SensorData sensor_data;
 
         std::istringstream iss(data_from_arduino);
