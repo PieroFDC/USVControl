@@ -3,32 +3,6 @@
 #include <thread>
 #include <random>
 
-// std::vector<double> convertAngles(const std::vector<double>& angles) {
-//     std::vector<double> convertedAngles;
-//     for (double angle : angles) {
-//         if (angle >= 0 && angle <= 180) {
-//             convertedAngles.push_back(angle);
-//         } else if (angle > 180 && angle <= 360) {
-//             convertedAngles.push_back(angle - 360);
-//         }
-//     }
-//     return convertedAngles;
-// }
-
-// std::pair<double, double> getMinDistanceAngle(const std::vector<double>& angles, const std::vector<double>& distances) {
-//     double minDistance = std::numeric_limits<double>::infinity();
-//     double minAngle = 0.0;  // Inicializado con un valor arbitrario; asegúrate de que tiene sentido en tu contexto
-
-//     for (size_t i = 0; i < distances.size(); ++i) {
-//         if (distances[i] >= 0.05 && distances[i] < minDistance) {
-//             minDistance = distances[i];
-//             minAngle = angles[i];
-//         }
-//     }
-
-//     return std::make_pair(minAngle, minDistance);
-// }
-
 int main() {
     // float inp; //
     std::pair<float, float> motors;
@@ -102,8 +76,12 @@ int main() {
 
 //         center = detector.detectLoop(frame);
 
-//         std::cout << center.first << std::endl << center.second << std::endl;
-
+//         if(center.first && center.second){
+//             std::cout << center.first << " : " << center.second << std::endl;
+//         } else {
+//             std::cout << "Not Object Detection" << std::endl;
+//         }
+        
 //         // motors = collectionController.calculateMotors(center);
 //         // std::cout << "Motor L: " << motors.first << std::endl << "Motor R: " << motors.second << std::endl;
 
@@ -115,61 +93,78 @@ int main() {
 //     cap.release();
 //     cv::destroyAllWindows();
 
+    ///////////////// SERIAL
+    // Inicializar el generador de números aleatorios
+    std::random_device rd;
+    std::mt19937 gen(rd());
 
-    // // Inicializar el generador de números aleatorios
-    // std::random_device rd;
-    // std::mt19937 gen(rd());
+    // Definir el rango
+    std::uniform_int_distribution<int> distribution(1100, 1900);
 
-    // // Definir el rango
-    // std::uniform_int_distribution<int> distribution(1100, 1900);
+    // Generar dos números aleatorios
+    int numero1;
+    int numero2;
 
-    // // Generar dos números aleatorios
-    // int numero1;
-    // int numero2;
+    SerialCommunication serialComm;
 
-    // SerialCommunication serialComm("/dev/ttyACM0", 2000000);
+    SensorDataInput sdatainp;
+    SensorDataOutput sdataout;
 
-    // SensorData sdata;
+    sdataout.camera_yaw = 50.0;
+    sdataout.nrf = "nrfmsg";
 
-    // // bucle principal
-    // while(true) {
-    //     numero1 = distribution(gen);
-    //     numero2 = distribution(gen);
-
-    //     std::string data_to_send = "<" + std::to_string(numero1) + "," + std::to_string(numero2) + ",78.0,nrf>";
-
-    //     // // Envía datos al Arduino
-    //     serialComm.sendData(data_to_send);
-    //     std::cout << "Datos enviados: " << data_to_send << std::endl;
-
-    //     // Ejemplo de uso: Recibir datos
-    //     sdata = serialComm.receiveData();
-
-    //     // Muestra los datos leídos
-    //     // std::cout << "Datos leídos: " << receivedData << std::endl;
-    //     std::cout << "Lat: " << sdata.lat << std::endl;
-    //     std::cout << "Lon: " << sdata.lon << std::endl;
-    //     std::cout << "Speed: " << sdata.speed << std::endl;
-    //     std::cout << "Yaw: " << sdata.yaw << std::endl;
-    //     std::cout << "NRF: " << sdata.nrf << std::endl;
-    //     std::cout << "Sonic: " << sdata.sonic << std::endl;
-    //     std::cout << "Volt: " << sdata.volt << std::endl;
-    //     std::cout << "PWML: " << sdata.pwml << std::endl;
-    //     std::cout << "PWMR: " << sdata.pwmr << std::endl;
-    // }
-    std::pair<float, float> lidar_data;
-    LidarSensor lidar_sensor;
-    lidar_sensor.InitializeLidar();
+    // bucle principal
     while(true) {
-        lidar_data = lidar_sensor.RunLidar();
-        std::cout << lidar_data.first << " : " << lidar_data.second << std::endl;
+        numero1 = distribution(gen);
+        numero2 = distribution(gen);
 
-        motors = obstacleController.calculateMotors(lidar_data.first);
-        std::cout << "Motor L: " << motors.first << std::endl << "Motor R: " << motors.second << std::endl;
+        sdataout.pwml = numero1;
+        sdataout.pwmr = numero2;
+
+        std::string data_to_send = "<" + std::to_string(numero1) + "," + std::to_string(numero2) + ",50.0,nrfmsg>";
+
+        // // // Envía datos al Arduino
+        serialComm.sendData(sdataout);
+        std::cout << "Datos enviados: " << data_to_send << std::endl;
+
+        // Recibir datos
+        while(true) {
+            try {
+                sdatainp = serialComm.receiveData();   
+                break;
+            } catch (const std::exception& e) {
+                std::cerr << "Error receiving data: " << e.what() << std::endl;
+                serialComm.sendData(sdataout);
+            }
+        }
+        
+        std::cout << "Lat: " << sdatainp.lat << std::endl;
+        std::cout << "Lon: " << sdatainp.lon << std::endl;
+        std::cout << "Speed: " << sdatainp.velocity << std::endl;
+        std::cout << "Course: " << sdatainp.course << std::endl;
+        std::cout << "Yaw: " << sdatainp.yaw << std::endl;
+        std::cout << "NRF: " << sdatainp.nrf << std::endl;
+        std::cout << "Sonic: " << sdatainp.sonic << std::endl;
+        std::cout << "Volt: " << sdatainp.volt << std::endl;
+        std::cout << "PWML: " << sdatainp.pwml << std::endl;
+        std::cout << "PWMR: " << sdatainp.pwmr << std::endl;
+
     }
-    
 
     return 0;
+    // std::pair<float, float> lidar_data;
+    // LidarSensor lidar_sensor;
+    // lidar_sensor.InitializeLidar();
+    // while(true) {
+    //     lidar_data = lidar_sensor.RunLidar();
+    //     std::cout << lidar_data.first << " : " << lidar_data.second << std::endl;
+
+    //     motors = obstacleController.calculateMotors(lidar_data.first);
+    //     std::cout << "Motor L: " << motors.first << std::endl << "Motor R: " << motors.second << std::endl;
+    // }
+    
+
+    // return 0;
 }
 
 // #include "ldlidar_driver.h"

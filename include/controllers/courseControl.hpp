@@ -11,7 +11,6 @@ using namespace fl;
 class CourseController {
 public:
     CourseController() {
-        // Constructor: Se llama una vez al inicializar la clase
         engine = std::unique_ptr<Engine>(FllImporter().fromFile(COURSE_CONTROL_PATH_FLL.string()));
 
         std::string status;
@@ -24,7 +23,6 @@ public:
     }
 
     std::pair<float, float> calculateMotors(float EOvalue) {
-        // Método para realizar la inferencia
         std::pair<float, float> motors = {1500.0f, 1500.0f};
 
         EO->setValue(EOvalue);

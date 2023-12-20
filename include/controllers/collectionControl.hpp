@@ -11,7 +11,6 @@ using namespace fl;
 class CollectionController {
 public:
     CollectionController() {
-        // Constructor: Se llama una vez al inicializar la clase
         engine = std::unique_ptr<Engine>(FllImporter().fromFile(COLLECTION_CONTROL_PATH_FLL.string()));
 
         std::string status;

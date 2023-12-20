@@ -36,6 +36,7 @@ file(GLOB  LDLIDAR_DRI_LOGGER ${CMAKE_CURRENT_SOURCE_DIR}/ldlidar_driver/src/log
 file(GLOB  LDLIDAR_DRI_NETWORK ${CMAKE_CURRENT_SOURCE_DIR}/ldlidar_driver/src/networkcom/*.cpp)
 file(GLOB  LDLIDAR_DRI_SERIAL ${CMAKE_CURRENT_SOURCE_DIR}/ldlidar_driver/src/serialcom/*.cpp)
 
+add_subdirectory(lib)
 
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 file(GLOB_RECURSE HEADERS "include/*.hpp" "include/controllers/*.hpp")
@@ -63,7 +64,8 @@ target_link_libraries(
     ${Boost_LIBRARIES}
     fuzzylite
     ncnn
-    ldlidar_driver_static)
+    ldlidar_driver_static
+    serial_lib)
 
 # Habilitar OpenMP si estás utilizando -fopenmp en el script original
 find_package(OpenMP)

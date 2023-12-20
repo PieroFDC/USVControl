@@ -15,16 +15,22 @@ public:
     }
 
     bool InitializeLidar() {
-        node_->RegisterGetTimestampFunctional(std::bind(&LidarSensor::GetSystemTimeStamp, this));
-        node_->EnableFilterAlgorithnmProcess(true);
+        try {
+            node_->RegisterGetTimestampFunctional(std::bind(&LidarSensor::GetSystemTimeStamp, this));
+            node_->EnableFilterAlgorithnmProcess(true);
 
-        node_->Start(type_name_, port_name_, serial_baudrate_, ldlidar::COMM_SERIAL_MODE);
+            node_->Start(type_name_, port_name_, serial_baudrate_, ldlidar::COMM_SERIAL_MODE);
 
-        if (node_->WaitLidarCommConnect(3500)) {
-            LDS_LOG_INFO("ldlidar communication is normal.", "");
-            return true;
-        } else {
-            LDS_LOG_ERROR("ldlidar communication is abnormal.", "");
+            if (node_->WaitLidarCommConnect(3500)) {
+                LDS_LOG_INFO("ldlidar communication is normal.", "");
+                return true;
+            } else {
+                LDS_LOG_ERROR("ldlidar communication is abnormal.", "");
+                node_->Stop();
+                return false;
+            }
+        } catch (const std::exception& e) {
+            LDS_LOG_ERROR("Exception during Lidar initialization: %s", e.what());
             node_->Stop();
             return false;
         }
@@ -39,49 +45,55 @@ public:
         double minDistance = std::numeric_limits<double>::infinity();
         double minAngle = 0.0;
 
-        if(ldlidar::LDLidarDriver::IsOk()) {
-            switch (node_->GetLaserScanData(laser_scan_points, 1500)) {
-                case ldlidar::LidarStatus::NORMAL: {
-                    double lidar_scan_freq = 0;
-                    node_->GetLidarScanFreq(lidar_scan_freq);
+        try {
+            if(ldlidar::LDLidarDriver::IsOk()) {
+                switch (node_->GetLaserScanData(laser_scan_points, 1500)) {
+                    case ldlidar::LidarStatus::NORMAL: {
+                        double lidar_scan_freq = 0;
+                        node_->GetLidarScanFreq(lidar_scan_freq);
 
-                    LDS_LOG_INFO("speed(Hz):%f,size:%d,stamp_front:%lu, stamp_back:%lu",
-                                 lidar_scan_freq, laser_scan_points.size(), laser_scan_points.front().stamp,
-                                 laser_scan_points.back().stamp);
+                        LDS_LOG_INFO("speed(Hz):%f,size:%d,stamp_front:%lu, stamp_back:%lu",
+                                    lidar_scan_freq, laser_scan_points.size(), laser_scan_points.front().stamp,
+                                    laser_scan_points.back().stamp);
 
-                    // Output 2d point cloud data
-                    for (const auto& point : laser_scan_points) {
+                        for (const auto& point : laser_scan_points) {
 
-                        angle_lidar = point.angle;
-                        distance_lidar = point.distance / 1000.0f;
+                            angle_lidar = point.angle;
+                            distance_lidar = point.distance / 1000.0f;
 
-                        if(distance_lidar > 0.05) {
-                            if (angle_lidar > 180 && angle_lidar <= 360) {
-                                angle_lidar = angle_lidar - 360;
+                            if(distance_lidar > 0.05) {
+                                if (angle_lidar > 180 && angle_lidar <= 360) {
+                                    angle_lidar = angle_lidar - 360;
+                                }
+
+                                if (distance_lidar < minDistance) {
+                                    minDistance = distance_lidar;
+                                    minAngle = -angle_lidar;
+                                }
+                                pair_data = {minAngle, minDistance};
                             }
 
-                            if (distance_lidar < minDistance) {
-                                minDistance = distance_lidar;
-                                minAngle = -angle_lidar;
-                            }
-                            pair_data = {minAngle, minDistance};
+                            LDS_LOG_INFO("stamp:%lu,angle:%f,distance(mm):%d,intensity:%d",
+                                        point.stamp, point.angle, point.distance, point.intensity);
                         }
 
-                        LDS_LOG_INFO("stamp:%lu,angle:%f,distance(mm):%d,intensity:%d",
-                                     point.stamp, point.angle, point.distance, point.intensity);
+                        break;
+                    } case ldlidar::LidarStatus::DATA_TIME_OUT: {
+                        LDS_LOG_ERROR("ldlidar publish data is time out, please check your lidar device.", "");
+                        node_->Stop();
+                        break;
+                    } default: {
+                        break;
                     }
-
-                    break;
-                } case ldlidar::LidarStatus::DATA_TIME_OUT: {
-                    LDS_LOG_ERROR("ldlidar publish data is time out, please check your lidar device.", "");
-                    node_->Stop();
-                    break;
-                } default: {
-                    break;
                 }
+                usleep(1000 * 100);  // Sleep 100ms == 10Hz
             }
-            usleep(1000 * 100);  // Sleep 100ms == 10Hz
+        } catch (const std::exception& e) {
+            LDS_LOG_ERROR("Exception during Lidar operation: %s", e.what());
+            node_->Stop();
+            throw;
         }
+
         return pair_data;
     }
 

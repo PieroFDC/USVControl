@@ -103,7 +103,7 @@ public:
         std::vector<TargetBox> nms_boxes;
         nmsHandle(target_boxes, nms_boxes);
 
-        for (size_t i = 0; i < nms_boxes.size(); i++) {
+        for(size_t i = 0; i < nms_boxes.size(); i++) {
             TargetBox box = nms_boxes[i];
             
             std::string object_name = class_names[box.category];
@@ -125,7 +125,7 @@ public:
 
         }
 
-        if (!nms_boxes.empty()) {
+        if(!nms_boxes.empty()) {
             TargetBox& highest_score_box = nms_boxes[0];
             max_center_points.first = 0.5f * (highest_score_box.x1 + highest_score_box.x2) / img_width;
             max_center_points.second = 0.5f * (highest_score_box.y1 + highest_score_box.y2) / img_height;
@@ -182,10 +182,10 @@ private:
         
         sort(src_boxes.begin(), src_boxes.end(), scoreSort);
 
-        for (int i = 0; i < src_boxes.size(); i++) {
+        for(int i = 0; i < src_boxes.size(); i++) {
             int keep = 1;
 
-            for (int j = 0; j < picked.size(); j++) {
+            for(int j = 0; j < picked.size(); j++) {
                 float inter_area = IntersectionArea(src_boxes[i], src_boxes[picked[j]]);
                 float union_area = src_boxes[i].area() + src_boxes[picked[j]].area() - inter_area;
                 float IoU = inter_area / union_area;
@@ -201,7 +201,7 @@ private:
             }
         }
         
-        for (int i = 0; i < picked.size(); i++) {
+        for(int i = 0; i < picked.size(); i++) {
             dst_boxes.push_back(src_boxes[picked[i]]);
         }
         src_boxes.clear();

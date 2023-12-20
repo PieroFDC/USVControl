@@ -3,13 +3,18 @@
 
 #include <iostream>
 #include <string>
-#include <boost/asio.hpp>
 #include <thread>
+#include <iomanip>
+#include "serialib/serialib.hpp"
 
-struct SensorData {
+#define SERIAL_PORT "/dev/ttyUSB0"
+#define BAUD_RATE 2000000
+
+struct SensorDataInput {
     float lat;
     float lon;
-    float speed;
+    float velocity;
+    float course;
     float yaw;
     std::string nrf;
     int sonic;
@@ -18,80 +23,114 @@ struct SensorData {
     int pwmr;
 };
 
+struct SensorDataOutput {
+    int pwml;
+    int pwmr;
+    float camera_yaw;
+    std::string nrf;
+};
+
 class SerialCommunication {
 public:
-    SerialCommunication(const std::string& port, unsigned int baud_rate)
-        : io_service_(), serial_port_(io_service_, port) {
+    SerialCommunication() {
 
-        serial_port_.set_option(boost::asio::serial_port_base::baud_rate(baud_rate));
+        char errorOpening = serial_.openDevice(SERIAL_PORT, BAUD_RATE);
         std::this_thread::sleep_for(std::chrono::seconds(2));
+
+        if (errorOpening == 1) {
+            printf ("Successful connection to %s\n",SERIAL_PORT);
+        } else {
+            throw "[serialib error] Error al abrir el puerto.";
+        }
     }
 
     ~SerialCommunication() {
-        serial_port_.close();
+        serial_.closeDevice();
     }
 
-    void sendData(const std::string& data) {
+    void sendData(const SensorDataOutput& sensor_data_output) {
         try {
-            boost::asio::write(serial_port_, boost::asio::buffer(data));
+            std::ostringstream oss;
+            oss << '<' << sensor_data_output.pwml << ',' << sensor_data_output.pwmr << ',' << sensor_data_output.camera_yaw << ',' << sensor_data_output.nrf << '>';
+            std::string data = oss.str();
+            serial_.writeString(data.c_str());
+            
         } catch (const std::exception& e) {
             std::cerr << "Error sending data: " << e.what() << std::endl;
         }
     }
 
-    SensorData receiveData() {
+    SensorDataInput receiveData() {
         char current_char;
         std::string data_from_arduino;
 
+        int timeout_read = 0;
+
         try {
-            while (true) {
-                boost::asio::read(serial_port_, boost::asio::buffer(&current_char, 1));
+            while(true) {
+                timeout_read = serial_.readChar(&current_char, 1000);
+                std::cout << "while readchar : " << timeout_read << std::endl;
+
+                if(timeout_read != 1) {
+                    throw std::runtime_error("[serialCom error] Error reading data from serial port.");
+                }
+
                 if (current_char == '<') {
                     break;
                 }
+                
             }
 
-            while (true) {
-                boost::asio::read(serial_port_, boost::asio::buffer(&current_char, 1));
+            while(true) {
+                timeout_read = serial_.readChar(&current_char, 1000);
 
+                if(timeout_read != 1) {
+                    throw std::runtime_error("No more timeout for data reading.");
+                }
+    
                 if (current_char == '>') {
                     break;
                 } else {
                     data_from_arduino += current_char;
                 }
             }
+
         } catch (const std::exception& e) {
             std::cerr << "Error receiving data: " << e.what() << std::endl;
+            throw std::runtime_error("[serialCom error] Error reading data from serial port.");
         }
 
-        SensorData sensor_data;
+        SensorDataInput sensor_data_inp;
 
         std::istringstream iss(data_from_arduino);
         iss.ignore(std::numeric_limits<std::streamsize>::max(), ':');
-        iss >> sensor_data.lat;
+        iss >> std::setprecision(8) >> sensor_data_inp.lat;
         iss.ignore(std::numeric_limits<std::streamsize>::max(), ':');
-        iss >> sensor_data.lon;
+        iss >> std::setprecision(8) >> sensor_data_inp.lon;
         iss.ignore(std::numeric_limits<std::streamsize>::max(), ':');
-        iss >> sensor_data.speed;
+        iss >> std::setprecision(5) >> sensor_data_inp.velocity;
         iss.ignore(std::numeric_limits<std::streamsize>::max(), ':');
-        iss >> sensor_data.yaw;
+        iss >> std::setprecision(5) >> sensor_data_inp.course;
         iss.ignore(std::numeric_limits<std::streamsize>::max(), ':');
-        std::getline(iss, sensor_data.nrf, ',');
+        iss >> std::setprecision(5) >> sensor_data_inp.yaw;
         iss.ignore(std::numeric_limits<std::streamsize>::max(), ':');
-        iss >> sensor_data.sonic;
+        std::getline(iss, sensor_data_inp.nrf, ',');
         iss.ignore(std::numeric_limits<std::streamsize>::max(), ':');
-        iss >> sensor_data.volt;
+        iss >> sensor_data_inp.sonic;
         iss.ignore(std::numeric_limits<std::streamsize>::max(), ':');
-        iss >> sensor_data.pwml;
+        iss >> std::setprecision(4) >> sensor_data_inp.volt;
         iss.ignore(std::numeric_limits<std::streamsize>::max(), ':');
-        iss >> sensor_data.pwmr;
+        iss >> sensor_data_inp.pwml;
+        iss.ignore(std::numeric_limits<std::streamsize>::max(), ':');
+        iss >> sensor_data_inp.pwmr;
 
-        return sensor_data;
+        data_from_arduino.clear();
+        // std::cout << "Se recibió Exitosamente..." << std::endl;
+        return sensor_data_inp;
     }
 
 private:
-    boost::asio::io_service io_service_;
-    boost::asio::serial_port serial_port_;
+    serialib serial_;
 };
 
 #endif //__SERIALCOM_HPP
