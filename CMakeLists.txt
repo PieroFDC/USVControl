@@ -10,10 +10,8 @@ set(FUZZYLITE_PATH "/home/piero/Documents/Libs/fuzzylite/fuzzylite")
 set(ncnn_DIR "/home/piero/Documents/Libs/ncnn/build/install/lib/cmake/ncnn" CACHE PATH "/home/piero/Documents/Libs/ncnn/build/install/lib/cmake/ncnn/ncnnConfig.cmake")
 find_package(ncnn REQUIRED)
 find_package(OpenCV REQUIRED)
-find_package(Boost REQUIRED COMPONENTS system thread)
 
-
-include_directories(${OpenCV_INCLUDE_DIRS} ${ncnn_INCLUDE_DIRS} ${FUZZYLITE_PATH} ${Boost_INCLUDE_DIRS})
+include_directories(${OpenCV_INCLUDE_DIRS} ${ncnn_INCLUDE_DIRS} ${FUZZYLITE_PATH})
 
 
 add_library(fuzzylite SHARED IMPORTED)
@@ -61,7 +59,6 @@ set_target_properties (ldlidar_driver_static PROPERTIES OUTPUT_NAME "ldlidar_dri
 target_link_libraries(
     ${PROJECT_NAME} PUBLIC
     ${OpenCV_LIBS}
-    ${Boost_LIBRARIES}
     fuzzylite
     ncnn
     ldlidar_driver_static
