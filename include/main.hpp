@@ -9,5 +9,8 @@
 #include "ncnnModel.hpp"
 #include "serialCom.hpp"
 #include "lidarSensor.hpp"
+#include "filter.hpp"
+
+#include "test.hpp" //
 
 #endif //__MAIN_HPP

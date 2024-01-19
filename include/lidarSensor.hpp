@@ -1,6 +1,7 @@
 #ifndef __LIDARSENSOR_HPP
 #define __LIDARSENSOR_HPP
 
+#include <chrono>
 #include "ldlidar_driver.h"
 
 class LidarSensor {
@@ -36,7 +37,9 @@ public:
         }
     }
 
-    std::pair<float, float> RunLidar() {
+    std::pair<float, float> RunLidar(int max_distance_obstacle) {
+        auto start_time = std::chrono::high_resolution_clock::now();
+
         ldlidar::Points2D laser_scan_points;
         std::pair<float, float> pair_data;
         float angle_lidar;
@@ -51,10 +54,6 @@ public:
                     case ldlidar::LidarStatus::NORMAL: {
                         double lidar_scan_freq = 0;
                         node_->GetLidarScanFreq(lidar_scan_freq);
-
-                        LDS_LOG_INFO("speed(Hz):%f,size:%d,stamp_front:%lu, stamp_back:%lu",
-                                    lidar_scan_freq, laser_scan_points.size(), laser_scan_points.front().stamp,
-                                    laser_scan_points.back().stamp);
 
                         for (const auto& point : laser_scan_points) {
 
@@ -72,26 +71,29 @@ public:
                                 }
                                 pair_data = {minAngle, minDistance};
                             }
+                        }
 
-                            LDS_LOG_INFO("stamp:%lu,angle:%f,distance(mm):%d,intensity:%d",
-                                        point.stamp, point.angle, point.distance, point.intensity);
+                        if(pair_data.second < minDistance || pair_data.second > max_distance_obstacle) {
+                            pair_data = {0, 0};
                         }
 
                         break;
                     } case ldlidar::LidarStatus::DATA_TIME_OUT: {
-                        LDS_LOG_ERROR("ldlidar publish data is time out, please check your lidar device.", "");
-                        node_->Stop();
-                        break;
+                        throw std::runtime_error("ldlidar publish data is time out, please check your lidar device.");;
                     } default: {
                         break;
                     }
                 }
-                usleep(1000 * 100);  // Sleep 100ms == 10Hz
+
+                auto end_time = std::chrono::high_resolution_clock::now();
+                auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+
+                usleep((1000 * 100) - duration.count());  // Sleep 100ms == 10Hz
             }
         } catch (const std::exception& e) {
-            LDS_LOG_ERROR("Exception during Lidar operation: %s", e.what());
             node_->Stop();
-            throw;
+            std::cerr << "Exception during Lidar operation: " << e.what() << std::endl;
+            throw std::runtime_error("[serialCom error] Error reading data from serial port: ");
         }
 
         return pair_data;

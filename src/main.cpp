@@ -1,133 +1,227 @@
 #include "main.hpp"
 #include <chrono>
+#include <iostream>
 #include <thread>
+#include <queue>
+#include <mutex>
+#include <condition_variable>
+#include <atomic>
 #include <random>
 
-int main() {
-    // float inp; //
+#include <fstream>
+
+struct ControllerOutput {
+    bool detection;
     std::pair<float, float> motors;
+};
 
-    // CollectionController collectionController;
-    // CourseController courseController;
-    ObstacleController obstacleController;
 
-    // motors = collectionController.calculateMotors(20);
-    // std::cout << "Motor L: " << motors.first << std::endl << "Motor R: " << motors.second << std::endl;
+void course_controller_thread(std::queue<ControllerOutput>& resultQueue,
+                                    std::mutex& mutex,
+                                    std::condition_variable& cv,
+                                    std::atomic<float>& EOvalue) {
 
-    // while(true) {
-        
-    //     motors = collectionController.calculateMotors({0.5, 0.5});
-    //     std::cout << "Motor L: " << motors.first << std::endl << "Motor R: " << motors.second << std::endl;
-    // }
+    CourseController courseController;
+    ControllerOutput controller_output = {true, {1500, 1500}};
 
-    // // Ejemplo de uso
-    // std::vector<double> inputAngles1 = {45.0, 200.0, 270.0, 360.0};
-    // std::vector<double> convertedAngles = convertAngles(inputAngles1);
+    while(true) {
+        float current_eo_value = EOvalue.load();
 
-    // // Imprimir los ángulos convertidos
-    // std::cout << "Ángulos convertidos: ";
-    // for (double convertedAngle : convertedAngles) {
-    //     std::cout << convertedAngle << " ";
-    // }
-    // std::cout << std::endl;
+        controller_output.motors = courseController.calculateMotors(current_eo_value);
+
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            resultQueue.push(controller_output);
+        }
+
+        cv.notify_one();
+    }
+}
+
+void obstacle_controller_thread(std::queue<ControllerOutput>& resultQueue,
+                                    std::mutex& mutex,
+                                    std::condition_variable& cv) {
+
+    int max_distance_obstacle = 10;
+    bool init_lidar = false;
     
+    ObstacleController obstacleController;
+    ControllerOutput controller_output = {false, {1500, 1500}};
 
-    // // Ejemplo de uso
-    // std::vector<double> inputAngles2 = {30.0, 45.0, 60.0, 179, 1};
-    // std::vector<double> inputDistances = {0.1, 0.03, 0.08, 0.06, 0.9};
-
-    // // Llamada a la función
-    // std::pair<double, double> result = getMinDistanceAngle(inputAngles2, inputDistances);
-
-    // // Imprimir el resultado
-    // std::cout << "Ángulo mínimo: " << result.first << ", Distancia mínima: " << result.second << std::endl;
+    std::pair<float, float> lidar_data;
+    LidarSensor lidar_sensor;
 
 
-// ///////////////////// NCNN
-//    ObjectDetector detector(
-//         MODEL_PARAM_PATH.c_str(),
-//         MODEL_BIN_PATH.c_str(),
-//         352,
-//         352
-//     ); 
+    init_lidar = lidar_sensor.InitializeLidar();
+    
+    do {
+        try {
+            lidar_data = lidar_sensor.RunLidar(max_distance_obstacle);
 
-//     cv::VideoCapture cap(0);
+            if(!(lidar_data.first || lidar_data.second)) {
+                controller_output.motors = {1500, 1500};
+                controller_output.detection = false;
+            } else {
+                controller_output.motors = obstacleController.calculateMotors(lidar_data.first);
+                controller_output.detection = true;
+            }
 
-//     cap.set(cv::CAP_PROP_FRAME_WIDTH, 640);
-//     cap.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
+        } catch (const std::exception& e) {
+            std::cerr << "Error al leer los datos del lidar." << std::endl;
+        }
 
-//     std::pair<float, float> center;
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            resultQueue.push(controller_output);
+        }
 
-//     // cv::VideoCapture cap("http://192.168.1.38:8080/video");
-//     if (!cap.isOpened()) {
-//         printf("Error al abrir la cámara.\n");
-//         return -1;
-//     }
+        cv.notify_one();
 
-//     while (true) {
-//         // Capturar frame de la cámara
-//         cv::Mat frame;
-//         cap >> frame;
+    } while(init_lidar);
+}
 
-//         if (frame.empty()) {
-//             printf("Error al capturar frame de la cámara.\n");
-//             break;
-//         }
+void collection_controller_thread(std::queue<ControllerOutput>& resultQueue,
+                                    std::mutex& mutex,
+                                    std::condition_variable& cv) {
 
-//         center = detector.detectLoop(frame);
+    CollectionController collectionController;
+    ControllerOutput controller_output = {false, {1500, 1500}};
 
-//         if(center.first && center.second){
-//             std::cout << center.first << " : " << center.second << std::endl;
-//         } else {
-//             std::cout << "Not Object Detection" << std::endl;
-//         }
-        
-//         // motors = collectionController.calculateMotors(center);
-//         // std::cout << "Motor L: " << motors.first << std::endl << "Motor R: " << motors.second << std::endl;
+    ObjectDetector detector(
+        MODEL_PARAM_PATH.c_str(),
+        MODEL_BIN_PATH.c_str(),
+        352,
+        352
+    ); 
 
-//         // Romper el bucle si se presiona la tecla 'q'
-//         if (cv::waitKey(1) == 'q')
-//             break;
-//     }
+    cv::VideoCapture cap(0);
+    cv::Mat frame;
 
-//     cap.release();
-//     cv::destroyAllWindows();
+    cap.set(cv::CAP_PROP_FRAME_WIDTH, 640);
+    cap.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
 
-    ///////////////// SERIAL
-    // Inicializar el generador de números aleatorios
-    std::random_device rd;
-    std::mt19937 gen(rd());
+    std::pair<float, float> center;
+    bool camera_ok = true;
 
-    // Definir el rango
-    std::uniform_int_distribution<int> distribution(1100, 1900);
+    if (!cap.isOpened()) {
+        std::cerr << "Error al abrir la cámara." << std::endl;
+        camera_ok = false;
+    }
 
-    // Generar dos números aleatorios
-    int numero1;
-    int numero2;
+    do {
+        try {
+            cap >> frame;
+            center = detector.detectLoop(frame);
+
+            if(center.first && center.second) {
+                controller_output.detection = true;
+                controller_output.motors = collectionController.calculateMotors(center);
+            } else {
+                controller_output.detection = false;
+                controller_output.motors = {1500, 1500};
+            }
+            
+
+        } catch (const std::exception& e) {
+            std::cerr << "Error al detectar las imágenes." << std::endl;
+        }
+
+
+        if (cv::waitKey(1) == 'q')
+            break;
+
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            resultQueue.push(controller_output);
+        }
+
+        cv.notify_one();
+
+    } while(camera_ok && !frame.empty());
+ }
+
+int main() {
+    ControllerOutput output_course;
+    ControllerOutput output_obstacle;
+    ControllerOutput output_collection;
+
+    std::queue<ControllerOutput> result_queue_course;
+    std::queue<ControllerOutput> result_queue_obstacle;
+    std::queue<ControllerOutput> result_queue_collection;
+
+    std::mutex mutex_course;
+    std::mutex mutex_obstacle;
+    std::mutex mutex_collection;
+
+    std::condition_variable cv_course;
+    std::condition_variable cv_obstacle;
+    std::condition_variable cv_collection;
+
+    std::atomic<float> input_eo(0);
+
+    std::thread course_thread(
+        course_controller_thread,
+        std::ref(result_queue_course),
+        std::ref(mutex_course),
+        std::ref(cv_course),
+        std::ref(input_eo)
+    );
+
+    std::thread obstacle_thread(
+        obstacle_controller_thread,
+        std::ref(result_queue_obstacle),
+        std::ref(mutex_obstacle),
+        std::ref(cv_obstacle)
+    );
+
+    std::thread collection_thread(
+        collection_controller_thread,
+        std::ref(result_queue_collection),
+        std::ref(mutex_collection),
+        std::ref(cv_collection)
+    );
+
+    bool obstacle_thread_exec = true;
+    bool collection_thread_exec = true;
+
+    // std::chrono::milliseconds timeout_read_course(120);
+    // std::chrono::milliseconds timeout_read_obstacle(150);
+    // std::chrono::milliseconds timeout_read_collection(250);
+    std::chrono::milliseconds timeout_read_course(1);
+    std::chrono::milliseconds timeout_read_obstacle(1);
+    std::chrono::milliseconds timeout_read_collection(1);
+
+    Filter filter(0.3);
+
+    float filt_value;
 
     SerialCommunication serialComm;
 
     SensorDataInput sdatainp;
     SensorDataOutput sdataout;
 
-    sdataout.camera_yaw = 50.0;
-    sdataout.nrf = "nrfmsg";
+    sdataout.camera_yaw = 78.0;
+    sdataout.nrf = "nrf";
+    sdataout.pwml = 1500;
+    sdataout.pwmr = 1500;
 
-    // bucle principal
+    serialComm.sendData(sdataout);
+
+    std::ofstream archivo1("../senal_con_ruido.txt");
+    std::ofstream archivo2("../senal_filtrada.txt");
+
+    auto start_time = std::chrono::steady_clock::now();
+
     while(true) {
-        numero1 = distribution(gen);
-        numero2 = distribution(gen);
+        auto current_time = std::chrono::steady_clock::now();
+        auto elapsed_time = std::chrono::duration_cast<std::chrono::seconds>(current_time - start_time).count();
 
-        sdataout.pwml = numero1;
-        sdataout.pwmr = numero2;
+        auto start_time_exec = std::chrono::high_resolution_clock::now();
 
-        std::string data_to_send = "<" + std::to_string(numero1) + "," + std::to_string(numero2) + ",50.0,nrfmsg>";
+        if (elapsed_time >= 30) {
+            break;
+        }
 
-        // // // Envía datos al Arduino
-        serialComm.sendData(sdataout);
-        std::cout << "Datos enviados: " << data_to_send << std::endl;
-
-        // Recibir datos
         while(true) {
             try {
                 sdatainp = serialComm.receiveData();   
@@ -137,107 +231,88 @@ int main() {
                 serialComm.sendData(sdataout);
             }
         }
-        
-        std::cout << "Lat: " << sdatainp.lat << std::endl;
-        std::cout << "Lon: " << sdatainp.lon << std::endl;
-        std::cout << "Speed: " << sdatainp.velocity << std::endl;
-        std::cout << "Course: " << sdatainp.course << std::endl;
-        std::cout << "Yaw: " << sdatainp.yaw << std::endl;
-        std::cout << "NRF: " << sdatainp.nrf << std::endl;
-        std::cout << "Sonic: " << sdatainp.sonic << std::endl;
-        std::cout << "Volt: " << sdatainp.volt << std::endl;
-        std::cout << "PWML: " << sdatainp.pwml << std::endl;
-        std::cout << "PWMR: " << sdatainp.pwmr << std::endl;
+
+        input_eo.store(sdatainp.yaw);
+
+        {
+            std::unique_lock<std::mutex> lock(mutex_course);
+            cv_course.wait_for(
+                lock,
+                timeout_read_course,
+                [&result_queue_course] {
+                    return !result_queue_course.empty();
+                }
+            );
+
+            while(!result_queue_course.empty()) {
+                output_course = result_queue_course.front();
+                result_queue_course.pop();
+            }
+        }
+
+        {
+            std::unique_lock<std::mutex> lock(mutex_obstacle);
+            cv_obstacle.wait_for(
+                lock,
+                timeout_read_obstacle,
+                [&result_queue_obstacle] {
+                    return !result_queue_obstacle.empty();
+                }
+            );
+
+            while(!result_queue_obstacle.empty()) {
+                output_obstacle = result_queue_obstacle.front();
+                result_queue_obstacle.pop();
+            }
+        }
+
+        {
+            std::unique_lock<std::mutex> lock(mutex_collection);
+            cv_collection.wait_for(
+                lock,
+                timeout_read_collection,
+                [&result_queue_collection] {
+                    return !result_queue_collection.empty();
+                }
+            );
+
+            while(!result_queue_collection.empty()) {
+                output_collection = result_queue_collection.front();
+                result_queue_collection.pop();
+            }
+        }
+
+        archivo1 << output_course.motors.first << "\n";
+        filt_value = filter.filterData(output_course.motors.first);
+        archivo2 << filt_value << "\n";
+
+        std::cout << "\033[2J\033[1;1H"; // Clear console
+        std::cout << "YAW: " << sdatainp.yaw << std::endl;
+        std::cout << output_course.motors.first << " : " << filt_value << std::endl;
+        std::cout << "Resultado leído del programa Course: " << output_course.motors.first << " : " << output_course.motors.second << " : " << output_course.detection << std::endl;
+        std::cout << "Resultado leído del programa Obstacle: " << output_obstacle.motors.first << " : " << output_obstacle.motors.second << " : " << output_obstacle.detection << std::endl;
+        std::cout << "Resultado leído del programa Collection: " << output_collection.motors.first << " : " << output_collection.motors.second << " : " << output_collection.detection << std::endl;
+
+        serialComm.sendData(sdataout);     
+
+        auto end_time_exec = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time_exec - start_time_exec);
+
+        std::cout << "duration: " << duration.count() << std::endl;
+
+        if (!(course_thread.joinable() || obstacle_thread.joinable() || collection_thread.joinable()) && result_queue_course.empty() && result_queue_obstacle.empty() && result_queue_collection.empty())
+            break;
 
     }
+    std::cout << "Fin del programa ..." << std::endl;
+
+    archivo1.close();
+    archivo2.close();
+
+    obstacle_thread.join();
+    collection_thread.join();
+
+
 
     return 0;
-    // std::pair<float, float> lidar_data;
-    // LidarSensor lidar_sensor;
-    // lidar_sensor.InitializeLidar();
-    // while(true) {
-    //     lidar_data = lidar_sensor.RunLidar();
-    //     std::cout << lidar_data.first << " : " << lidar_data.second << std::endl;
-
-    //     motors = obstacleController.calculateMotors(lidar_data.first);
-    //     std::cout << "Motor L: " << motors.first << std::endl << "Motor R: " << motors.second << std::endl;
-    // }
-    
-
-    // return 0;
 }
-
-// #include "ldlidar_driver.h"
-
-// uint64_t GetSystemTimeStamp(void) {
-//   std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> tp = 
-//     std::chrono::time_point_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now());
-//   auto tmp = std::chrono::duration_cast<std::chrono::nanoseconds>(tp.time_since_epoch());
-//   return ((uint64_t)tmp.count());
-// }
-
-// int main() {
-
-//   std::string port_name = "/dev/lidar";
-//   uint32_t serial_baudrate = 230400;
-//   ldlidar::LDType type_name = ldlidar::LDType::LD_19;
-
-//   ldlidar::LDLidarDriver* node = new ldlidar::LDLidarDriver();
-
-//   node->RegisterGetTimestampFunctional(std::bind(&GetSystemTimeStamp)); 
-
-//   node->EnableFilterAlgorithnmProcess(true);
-
-//   node->Start(type_name, port_name, serial_baudrate, ldlidar::COMM_SERIAL_MODE);
-
-//   if (node->WaitLidarCommConnect(3500)) {
-//     LDS_LOG_INFO("ldlidar communication is normal.","");
-//   } else {
-//     LDS_LOG_ERROR("ldlidar communication is abnormal.","");
-//     node->Stop();
-//   }
-
-//   ldlidar::Points2D laser_scan_points;
-  
-//   while (ldlidar::LDLidarDriver::IsOk()) {
-//     switch (node->GetLaserScanData(laser_scan_points, 1500)){
-//       case ldlidar::LidarStatus::NORMAL: {
-//         double lidar_scan_freq = 0;
-//         node->GetLidarScanFreq(lidar_scan_freq);
-
-
-//         LDS_LOG_INFO("speed(Hz):%f,size:%d,stamp_front:%lu, stamp_back:%lu",
-//           lidar_scan_freq, laser_scan_points.size(), laser_scan_points.front().stamp, laser_scan_points.back().stamp);
-
-//         //  output 2d point cloud data
-//         for (auto point : laser_scan_points) {
-//           LDS_LOG_INFO("stamp:%lu,angle:%f,distance(mm):%d,intensity:%d", 
-//             point.stamp, point.angle, point.distance, point.intensity);
-//         }
-        
-//         break;
-//       }
-//       case ldlidar::LidarStatus::DATA_TIME_OUT: {
-//         LDS_LOG_ERROR("ldlidar publish data is time out, please check your lidar device.","");
-//         node->Stop();
-//         break;
-//       }
-//       case ldlidar::LidarStatus::DATA_WAIT: {
-//         break;
-//       }
-//       default: {
-//         break;
-//       }
-//     }
-
-//     usleep(1000 * 100);  // sleep 100ms  == 10Hz
-//   }
-
-//   node->Stop();
-//   // LidarPowerOff();
-
-//   delete node;
-//   node = nullptr;
-
-//   return 0;
-// }

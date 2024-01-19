@@ -62,7 +62,8 @@ target_link_libraries(
     fuzzylite
     ncnn
     ldlidar_driver_static
-    serial_lib)
+    serial_lib
+    filter_fir)
 
 # Habilitar OpenMP si estás utilizando -fopenmp en el script original
 find_package(OpenMP)
