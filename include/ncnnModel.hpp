@@ -6,6 +6,7 @@
 #include "net.h"
 #include "benchmark.h"
 #include <opencv2/opencv.hpp>
+#include "readConfig.hpp"
 
 class TargetBox {
 private:
@@ -131,7 +132,10 @@ public:
             max_center_points.second = 0.5f * (highest_score_box.y1 + highest_score_box.y2) / img_height;
         }
 
-        cv::imshow("Result", frame);
+        if(project_config.ShowCameraFrames) {
+            cv::imshow("Result", frame);
+        }
+        
         return max_center_points;
     }
 
@@ -153,6 +157,7 @@ private:
 
     int class_num = class_names.size();
     float thresh = 0.7;
+    Config project_config = readYAML();
 
     float Sigmoid(float x) {
         return 1.0f / (1.0f + exp(-x));

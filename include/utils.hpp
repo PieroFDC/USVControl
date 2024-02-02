@@ -13,4 +13,6 @@ std::filesystem::path OBSTACLE_CONTROL_PATH_FLL = PROJECT_PATH / "fuzzyControlle
 std::filesystem::path MODEL_BIN_PATH = PROJECT_PATH / "model" / "FastestDet.bin";
 std::filesystem::path MODEL_PARAM_PATH = PROJECT_PATH / "model" / "FastestDet.param";
 
+std::filesystem::path CONFIG_PATH = PROJECT_PATH / "config.yaml";
+
 #endif //__UTILS_HPP

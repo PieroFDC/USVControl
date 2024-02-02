@@ -1,20 +1,9 @@
 #include "main.hpp"
-#include <chrono>
-#include <iostream>
-#include <thread>
-#include <queue>
-#include <mutex>
-#include <condition_variable>
-#include <atomic>
-#include <random>
-
-#include <fstream>
 
 struct ControllerOutput {
     bool detection;
     std::pair<float, float> motors;
 };
-
 
 void course_controller_thread(std::queue<ControllerOutput>& resultQueue,
                                     std::mutex& mutex,
@@ -42,7 +31,7 @@ void obstacle_controller_thread(std::queue<ControllerOutput>& resultQueue,
                                     std::mutex& mutex,
                                     std::condition_variable& cv) {
 
-    int max_distance_obstacle = 10;
+    int max_distance_obstacle = 1;
     bool init_lidar = false;
     
     ObstacleController obstacleController;
@@ -141,6 +130,8 @@ void collection_controller_thread(std::queue<ControllerOutput>& resultQueue,
  }
 
 int main() {
+    Config project_config = readYAML();
+
     ControllerOutput output_course;
     ControllerOutput output_obstacle;
     ControllerOutput output_collection;
@@ -173,29 +164,24 @@ int main() {
         std::ref(mutex_obstacle),
         std::ref(cv_obstacle)
     );
-
+    
     std::thread collection_thread(
         collection_controller_thread,
         std::ref(result_queue_collection),
         std::ref(mutex_collection),
         std::ref(cv_collection)
     );
-
+    
     bool obstacle_thread_exec = true;
     bool collection_thread_exec = true;
 
-    // std::chrono::milliseconds timeout_read_course(120);
-    // std::chrono::milliseconds timeout_read_obstacle(150);
-    // std::chrono::milliseconds timeout_read_collection(250);
-    std::chrono::milliseconds timeout_read_course(1);
-    std::chrono::milliseconds timeout_read_obstacle(1);
-    std::chrono::milliseconds timeout_read_collection(1);
+    std::chrono::milliseconds timeout_read(1);
 
     Filter filter(0.3);
 
     float filt_value;
 
-    SerialCommunication serialComm;
+    // SerialCommunication serialComm;
 
     SensorDataInput sdatainp;
     SensorDataOutput sdataout;
@@ -205,40 +191,32 @@ int main() {
     sdataout.pwml = 1500;
     sdataout.pwmr = 1500;
 
-    serialComm.sendData(sdataout);
-
-    std::ofstream archivo1("../senal_con_ruido.txt");
-    std::ofstream archivo2("../senal_filtrada.txt");
-
-    auto start_time = std::chrono::steady_clock::now();
+    // serialComm.sendData(sdataout);
 
     while(true) {
-        auto current_time = std::chrono::steady_clock::now();
-        auto elapsed_time = std::chrono::duration_cast<std::chrono::seconds>(current_time - start_time).count();
-
         auto start_time_exec = std::chrono::high_resolution_clock::now();
 
-        if (elapsed_time >= 30) {
-            break;
-        }
+        // if (elapsed_time >= 30) {
+        //     break;
+        // }
 
-        while(true) {
-            try {
-                sdatainp = serialComm.receiveData();   
-                break;
-            } catch (const std::exception& e) {
-                std::cerr << "Error receiving data: " << e.what() << std::endl;
-                serialComm.sendData(sdataout);
-            }
-        }
+        // while(true) {
+        //     try {
+        //         sdatainp = serialComm.receiveData();   
+        //         break;
+        //     } catch (const std::exception& e) {
+        //         std::cerr << "Error receiving data: " << e.what() << std::endl;
+        //         serialComm.sendData(sdataout);
+        //     }
+        // }
 
         input_eo.store(sdatainp.yaw);
 
-        {
+        if(project_config.Course) {
             std::unique_lock<std::mutex> lock(mutex_course);
             cv_course.wait_for(
                 lock,
-                timeout_read_course,
+                timeout_read,
                 [&result_queue_course] {
                     return !result_queue_course.empty();
                 }
@@ -250,11 +228,11 @@ int main() {
             }
         }
 
-        {
+        if(project_config.Obstacle) {
             std::unique_lock<std::mutex> lock(mutex_obstacle);
             cv_obstacle.wait_for(
                 lock,
-                timeout_read_obstacle,
+                timeout_read,
                 [&result_queue_obstacle] {
                     return !result_queue_obstacle.empty();
                 }
@@ -266,11 +244,11 @@ int main() {
             }
         }
 
-        {
+        if(project_config.Collection) {
             std::unique_lock<std::mutex> lock(mutex_collection);
             cv_collection.wait_for(
                 lock,
-                timeout_read_collection,
+                timeout_read,
                 [&result_queue_collection] {
                     return !result_queue_collection.empty();
                 }
@@ -282,9 +260,7 @@ int main() {
             }
         }
 
-        archivo1 << output_course.motors.first << "\n";
         filt_value = filter.filterData(output_course.motors.first);
-        archivo2 << filt_value << "\n";
 
         std::cout << "\033[2J\033[1;1H"; // Clear console
         std::cout << "YAW: " << sdatainp.yaw << std::endl;
@@ -293,24 +269,18 @@ int main() {
         std::cout << "Resultado leído del programa Obstacle: " << output_obstacle.motors.first << " : " << output_obstacle.motors.second << " : " << output_obstacle.detection << std::endl;
         std::cout << "Resultado leído del programa Collection: " << output_collection.motors.first << " : " << output_collection.motors.second << " : " << output_collection.detection << std::endl;
 
-        serialComm.sendData(sdataout);     
+        // serialComm.sendData(sdataout);     
 
         auto end_time_exec = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time_exec - start_time_exec);
 
         std::cout << "duration: " << duration.count() << std::endl;
 
-        if (!(course_thread.joinable() || obstacle_thread.joinable() || collection_thread.joinable()) && result_queue_course.empty() && result_queue_obstacle.empty() && result_queue_collection.empty())
-            break;
-
     }
     std::cout << "Fin del programa ..." << std::endl;
 
-    archivo1.close();
-    archivo2.close();
-
-    obstacle_thread.join();
-    collection_thread.join();
+    // obstacle_thread.join();
+    // collection_thread.join();
 
 
 

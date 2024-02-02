@@ -1,0 +1,8 @@
+---
+Controller:
+    Course: false
+    Obstacle: true
+    Collection: true
+    
+ShowCameraFrames: true
+---
