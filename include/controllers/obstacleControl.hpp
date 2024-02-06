@@ -1,9 +1,7 @@
 #ifndef __OBSTACLECONTROL_HPP
 #define __OBSTACLECONTROL_HPP
 
-#include <vector>
 #include "fl/Headers.h"
-
 #include "../utils.hpp"
 
 using namespace fl;

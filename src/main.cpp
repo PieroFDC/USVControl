@@ -132,6 +132,12 @@ void collection_controller_thread(std::queue<ControllerOutput>& resultQueue,
 int main() {
     Config project_config = readYAML();
 
+    std::cout << project_config.Collection << " : " << project_config.Course << " : " << project_config.Obstacle << std::endl;
+
+    std::thread course_thread;
+    std::thread obstacle_thread;
+    std::thread collection_thread;
+
     ControllerOutput output_course;
     ControllerOutput output_obstacle;
     ControllerOutput output_collection;
@@ -150,27 +156,33 @@ int main() {
 
     std::atomic<float> input_eo(0);
 
-    std::thread course_thread(
-        course_controller_thread,
-        std::ref(result_queue_course),
-        std::ref(mutex_course),
-        std::ref(cv_course),
-        std::ref(input_eo)
-    );
+    if(project_config.Course) {
+        course_thread = std::thread(
+            course_controller_thread,
+            std::ref(result_queue_course),
+            std::ref(mutex_course),
+            std::ref(cv_course),
+            std::ref(input_eo)
+        );
+    }
 
-    std::thread obstacle_thread(
-        obstacle_controller_thread,
-        std::ref(result_queue_obstacle),
-        std::ref(mutex_obstacle),
-        std::ref(cv_obstacle)
-    );
-    
-    std::thread collection_thread(
-        collection_controller_thread,
-        std::ref(result_queue_collection),
-        std::ref(mutex_collection),
-        std::ref(cv_collection)
-    );
+    if(project_config.Obstacle) {
+        obstacle_thread = std::thread(
+            obstacle_controller_thread,
+            std::ref(result_queue_obstacle),
+            std::ref(mutex_obstacle),
+            std::ref(cv_obstacle)
+        );
+    }
+
+    if(project_config.Collection) {
+        collection_thread = std::thread(
+            collection_controller_thread,
+            std::ref(result_queue_collection),
+            std::ref(mutex_collection),
+            std::ref(cv_collection)
+        );
+    }
     
     bool obstacle_thread_exec = true;
     bool collection_thread_exec = true;
@@ -181,7 +193,7 @@ int main() {
 
     float filt_value;
 
-    // SerialCommunication serialComm;
+    SerialCommunication serialComm;
 
     SensorDataInput sdatainp;
     SensorDataOutput sdataout;
@@ -191,24 +203,20 @@ int main() {
     sdataout.pwml = 1500;
     sdataout.pwmr = 1500;
 
-    // serialComm.sendData(sdataout);
+    serialComm.sendData(sdataout);
 
     while(true) {
-        auto start_time_exec = std::chrono::high_resolution_clock::now();
+        auto start_time_exec = std::chrono::high_resolution_clock::now(); 
 
-        // if (elapsed_time >= 30) {
-        //     break;
-        // }
-
-        // while(true) {
-        //     try {
-        //         sdatainp = serialComm.receiveData();   
-        //         break;
-        //     } catch (const std::exception& e) {
-        //         std::cerr << "Error receiving data: " << e.what() << std::endl;
-        //         serialComm.sendData(sdataout);
-        //     }
-        // }
+        while(true) {
+            try {
+                sdatainp = serialComm.receiveData();   
+                break;
+            } catch (const std::exception& e) {
+                std::cerr << "Error receiving data: " << e.what() << std::endl;
+                serialComm.sendData(sdataout);
+            }
+        }
 
         input_eo.store(sdatainp.yaw);
 
@@ -260,16 +268,16 @@ int main() {
             }
         }
 
-        filt_value = filter.filterData(output_course.motors.first);
+        // filt_value = filter.filterData(output_course.motors.first);
 
-        std::cout << "\033[2J\033[1;1H"; // Clear console
+        // std::cout << "\033[2J\033[1;1H"; // Clear console
         std::cout << "YAW: " << sdatainp.yaw << std::endl;
-        std::cout << output_course.motors.first << " : " << filt_value << std::endl;
-        std::cout << "Resultado leído del programa Course: " << output_course.motors.first << " : " << output_course.motors.second << " : " << output_course.detection << std::endl;
-        std::cout << "Resultado leído del programa Obstacle: " << output_obstacle.motors.first << " : " << output_obstacle.motors.second << " : " << output_obstacle.detection << std::endl;
-        std::cout << "Resultado leído del programa Collection: " << output_collection.motors.first << " : " << output_collection.motors.second << " : " << output_collection.detection << std::endl;
+        // std::cout << output_course.motors.first << " : " << filt_value << std::endl;
+        // std::cout << "Resultado leído del programa Course: " << output_course.motors.first << " : " << output_course.motors.second << " : " << output_course.detection << std::endl;
+        // std::cout << "Resultado leído del programa Obstacle: " << output_obstacle.motors.first << " : " << output_obstacle.motors.second << " : " << output_obstacle.detection << std::endl;
+        // std::cout << "Resultado leído del programa Collection: " << output_collection.motors.first << " : " << output_collection.motors.second << " : " << output_collection.detection << std::endl;
 
-        // serialComm.sendData(sdataout);     
+        serialComm.sendData(sdataout);     
 
         auto end_time_exec = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time_exec - start_time_exec);
@@ -278,11 +286,5 @@ int main() {
 
     }
     std::cout << "Fin del programa ..." << std::endl;
-
-    // obstacle_thread.join();
-    // collection_thread.join();
-
-
-
     return 0;
 }

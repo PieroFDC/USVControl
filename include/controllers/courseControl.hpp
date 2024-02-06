@@ -1,9 +1,7 @@
 #ifndef __COURSECONTROL_HPP
 #define __COURSECONTROL_HPP
 
-#include <vector>
 #include "fl/Headers.h"
-
 #include "../utils.hpp"
 
 using namespace fl;

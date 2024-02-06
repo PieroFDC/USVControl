@@ -16,6 +16,8 @@ struct SensorDataInput {
     double velocity;
     double course;
     double yaw;
+    double pitch;
+    double roll;
     std::string nrf;
     int sonic;
     double volt;
@@ -45,7 +47,6 @@ public:
     }
 
     ~SerialCommunication() {
-        std::cout << "Se liberó la memoria!!!" << std::endl;
         serial_.closeDevice();
     }
 
@@ -90,6 +91,7 @@ public:
     
                 if (current_char == '>') {
                     break;
+                    
                 } else {
                     data_from_arduino += current_char;
                 }
@@ -115,6 +117,10 @@ public:
         iss >> sensor_data_inp.course;
         iss.ignore(std::numeric_limits<std::streamsize>::max(), ':');
         iss >> sensor_data_inp.yaw;
+        iss.ignore(std::numeric_limits<std::streamsize>::max(), ':');
+        iss >> sensor_data_inp.pitch;
+        iss.ignore(std::numeric_limits<std::streamsize>::max(), ':');
+        iss >> sensor_data_inp.roll;
         iss.ignore(std::numeric_limits<std::streamsize>::max(), ':');
         std::getline(iss, sensor_data_inp.nrf, ',');
         iss.ignore(std::numeric_limits<std::streamsize>::max(), ':');

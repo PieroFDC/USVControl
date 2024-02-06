@@ -1,7 +1,7 @@
 ---
 Controller:
     Course: false
-    Obstacle: true
+    Obstacle: false
     Collection: true
     
 ShowCameraFrames: true

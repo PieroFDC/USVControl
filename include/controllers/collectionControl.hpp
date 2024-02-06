@@ -1,9 +1,7 @@
 #ifndef __COLLECTIONCONTROL_HPP
 #define __COLLECTIONCONTROL_HPP
 
-#include <vector>
 #include "fl/Headers.h"
-
 #include "../utils.hpp"
 
 using namespace fl;
