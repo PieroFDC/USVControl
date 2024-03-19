@@ -1,5 +1,5 @@
-#ifndef __COURSECONTROL_HPP
-#define __COURSECONTROL_HPP
+#ifndef COURSECONTROL_HPP
+#define COURSECONTROL_HPP
 
 #include "fl/Headers.h"
 #include "../utils.hpp"
@@ -20,8 +20,8 @@ public:
         FMD = std::unique_ptr<OutputVariable>(engine->getOutputVariable("FMD"));
     }
 
-    std::pair<float, float> calculateMotors(float EOvalue) {
-        std::pair<float, float> motors = {1500.0f, 1500.0f};
+    std::pair<double, double> calculateMotors(double EOvalue) {
+        std::pair<double, double> motors = {1500.0f, 1500.0f};
 
         EO->setValue(EOvalue);
         engine->process();
@@ -39,4 +39,4 @@ private:
     std::unique_ptr<OutputVariable> FMD;
 };
 
-#endif //__COURSECONTROL_HPP
+#endif //COURSECONTROL_HPP

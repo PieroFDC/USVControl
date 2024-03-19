@@ -1,5 +1,5 @@
-#ifndef __COLLECTIONCONTROL_HPP
-#define __COLLECTIONCONTROL_HPP
+#ifndef COLLECTIONCONTROL_HPP
+#define COLLECTIONCONTROL_HPP
 
 #include "fl/Headers.h"
 #include "../utils.hpp"
@@ -20,9 +20,9 @@ public:
         FMD = std::unique_ptr<OutputVariable>(engine->getOutputVariable("FMD"));
     }
 
-    std::pair<float, float> calculateMotors(std::pair<float, float> OFFSETvalue) {
+    std::pair<double, double> calculateMotors(std::pair<double, double> OFFSETvalue) {
         // Método para realizar la inferencia
-        std::pair<float, float> motors = {1500.0f, 1500.0f};
+        std::pair<double, double> motors = {1500.0, 1500.0};
 
         OFFSET->setValue(OFFSETvalue.first);
         engine->process();
@@ -40,4 +40,4 @@ private:
     std::unique_ptr<OutputVariable> FMD;
 };
 
-#endif //__COLLECTIONCONTROL_HPP
+#endif //COLLECTIONCONTROL_HPP

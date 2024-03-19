@@ -1,5 +1,5 @@
-#ifndef __LIDARSENSOR_HPP
-#define __LIDARSENSOR_HPP
+#ifndef LIDARSENSOR_HPP
+#define LIDARSENSOR_HPP
 
 #include <chrono>
 #include "ldlidar_driver.h"
@@ -7,7 +7,7 @@
 class LidarSensor {
 public:
     LidarSensor()
-        : port_name_("/dev/lidar"), serial_baudrate_(230400), type_name_(ldlidar::LDType::LD_19) {
+            : port_name_("/dev/lidar"), serial_baudrate_(230400), type_name_(ldlidar::LDType::LD_19) {
         node_ = std::make_unique<ldlidar::LDLidarDriver>();
     }
 
@@ -17,21 +17,21 @@ public:
 
     bool InitializeLidar() {
         try {
-            node_->RegisterGetTimestampFunctional(std::bind(&LidarSensor::GetSystemTimeStamp, this));
+            node_->RegisterGetTimestampFunctional([] { return GetSystemTimeStamp(); });
             node_->EnableFilterAlgorithnmProcess(true);
 
             node_->Start(type_name_, port_name_, serial_baudrate_, ldlidar::COMM_SERIAL_MODE);
 
             if (node_->WaitLidarCommConnect(3500)) {
-                LDS_LOG_INFO("ldlidar communication is normal.", "");
+                std::cout << "ldlidar communication is normal." << std::endl;
                 return true;
             } else {
-                LDS_LOG_ERROR("ldlidar communication is abnormal.", "");
+                std::cerr << "ldlidar communication is abnormal." << std::endl;
                 node_->Stop();
                 return false;
             }
         } catch (const std::exception& e) {
-            LDS_LOG_ERROR("Exception during Lidar initialization: %s", e.what());
+            std::cerr << "Exception during Lidar initialization: " << e.what() << std::endl;
             node_->Stop();
             return false;
         }
@@ -44,7 +44,7 @@ public:
         std::pair<float, float> pair_data;
         float angle_lidar;
         float distance_lidar;
-        
+
         double minDistance = std::numeric_limits<double>::infinity();
         double minAngle = 0.0;
 
@@ -58,7 +58,7 @@ public:
                         for (const auto& point : laser_scan_points) {
 
                             angle_lidar = point.angle;
-                            distance_lidar = point.distance / 1000.0f;
+                            distance_lidar = static_cast<float>(point.distance) / 1000.0f;
 
                             if(distance_lidar > 0.05) {
                                 if (angle_lidar > 180 && angle_lidar <= 360) {
@@ -73,13 +73,13 @@ public:
                             }
                         }
 
-                        if(pair_data.second < minDistance || pair_data.second > max_distance_obstacle) {
+                        if(pair_data.second < minDistance || pair_data.second > static_cast<float>(max_distance_obstacle)) {
                             pair_data = {0, 0};
                         }
 
                         break;
                     } case ldlidar::LidarStatus::DATA_TIME_OUT: {
-                        throw std::runtime_error("ldlidar publish data is time out, please check your lidar device.");;
+                        throw std::runtime_error("ldlidar publish data is time out, please check your lidar device.");
                     } default: {
                         break;
                     }
@@ -100,9 +100,9 @@ public:
     }
 
 private:
-    uint64_t GetSystemTimeStamp() {
+    static uint64_t GetSystemTimeStamp() {
         std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> tp =
-            std::chrono::time_point_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now());
+                std::chrono::time_point_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now());
         auto tmp = std::chrono::duration_cast<std::chrono::nanoseconds>(tp.time_since_epoch());
         return static_cast<uint64_t>(tmp.count());
     }
@@ -111,7 +111,7 @@ private:
     const uint32_t serial_baudrate_;
     const ldlidar::LDType type_name_;
     std::unique_ptr<ldlidar::LDLidarDriver> node_;
-    
+
 };
 
-#endif //__LIDARSENSOR_HPP
+#endif //LIDARSENSOR_HPP

@@ -1,5 +1,5 @@
-#ifndef __OBSTACLECONTROL_HPP
-#define __OBSTACLECONTROL_HPP
+#ifndef OBSTACLECONTROL_HPP
+#define OBSTACLECONTROL_HPP
 
 #include "fl/Headers.h"
 #include "../utils.hpp"
@@ -20,8 +20,8 @@ public:
         FMD = std::unique_ptr<OutputVariable>(engine->getOutputVariable("FMD"));
     }
 
-    std::pair<float, float> calculateMotors(float MAvalue) {
-        std::pair<float, float> motors = {1500.0f, 1500.0f};
+    std::pair<double, double> calculateMotors(double MAvalue) {
+        std::pair<double, double> motors = {1500.0f, 1500.0f};
 
         MA->setValue(MAvalue);
         engine->process();
@@ -39,4 +39,4 @@ private:
     std::unique_ptr<OutputVariable> FMD;
 };
 
-#endif //__OBSTACLECONTROL_HPP
+#endif //OBSTACLECONTROL_HPP

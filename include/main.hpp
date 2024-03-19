@@ -1,5 +1,5 @@
-#ifndef __MAIN_HPP
-#define __MAIN_HPP
+#ifndef MAIN_HPP
+#define MAIN_HPP
 
 #include <chrono>
 #include <iostream>
@@ -20,7 +20,8 @@
 #include "lidarSensor.hpp"
 #include "filter.hpp"
 #include "readConfig.hpp"
+#include "getDecMagnet.hpp"
+#include "functionUtils.hpp"
+#include "waypoints.hpp"
 
-#include "test.hpp" //
-
-#endif //__MAIN_HPP
+#endif //MAIN_HPP

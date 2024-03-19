@@ -5,4 +5,9 @@ Controller:
     Collection: true
     
 ShowCameraFrames: true
+ARM: false
+
+GPSData:
+    Latitude: -12.867533
+    Longitude: -72.689406
 ---

@@ -1,5 +1,5 @@
-#ifndef __UTILS_HPP
-#define __UTILS_HPP
+#ifndef UTILS_HPP
+#define UTILS_HPP
 
 #include <iostream>
 #include <filesystem>
@@ -14,5 +14,6 @@ std::filesystem::path MODEL_BIN_PATH = PROJECT_PATH / "model" / "FastestDet.bin"
 std::filesystem::path MODEL_PARAM_PATH = PROJECT_PATH / "model" / "FastestDet.param";
 
 std::filesystem::path CONFIG_PATH = PROJECT_PATH / "config.yaml";
+std::filesystem::path WAYPOINTS_PATH = PROJECT_PATH / "waypoints.gpx";
 
-#endif //__UTILS_HPP
+#endif //UTILS_HPP

@@ -11,6 +11,7 @@ set(ncnn_DIR "/home/piero/Documents/Libs/ncnn/build/install/lib/cmake/ncnn" CACH
 find_package(ncnn REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package (yaml-cpp)
+find_package(CURL REQUIRED)
 
 include_directories(${OpenCV_INCLUDE_DIRS} ${ncnn_INCLUDE_DIRS} ${FUZZYLITE_PATH} ${YAML_CPP_INCLUDE_DIR})
 
@@ -40,7 +41,9 @@ add_subdirectory(lib)
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 file(GLOB_RECURSE HEADERS "include/*.hpp" "include/controllers/*.hpp")
 
-add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
+add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS}
+        include/functionUtils.hpp
+        include/waypoints.hpp)
 
 
 target_include_directories(${PROJECT_NAME} PRIVATE include)
@@ -61,11 +64,12 @@ target_link_libraries(
     ${PROJECT_NAME} PUBLIC
     ${OpenCV_LIBS}
     ${YAML_CPP_LIBRARIES}
+    ${CURL_LIBRARIES}
     fuzzylite
     ncnn
     ldlidar_driver_static
     serial_lib
-    filter_fir)
+    tiny_xml2)
 
 # Habilitar OpenMP si estás utilizando -fopenmp en el script original
 find_package(OpenMP)

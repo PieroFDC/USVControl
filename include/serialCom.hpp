@@ -1,5 +1,5 @@
-#ifndef __SERIALCOM_HPP
-#define __SERIALCOM_HPP
+#ifndef SERIALCOM_HPP
+#define SERIALCOM_HPP
 
 #include <iostream>
 #include <string>
@@ -11,24 +11,26 @@
 #define BAUD_RATE 2000000
 
 struct SensorDataInput {
-    double lat;
-    double lon;
-    double velocity;
-    double course;
-    double yaw;
-    double pitch;
-    double roll;
+    double lat = -999.00;
+    double lon = -999.00;
+    double velocity = -999.00;
+    double course = -999.00;
+    double yaw = 0.0;
+    double pitch = 0.0;
+    double roll = 0.0;
+    int calibration = 0;
     std::string nrf;
-    int sonic;
-    double volt;
-    int pwml;
-    int pwmr;
+    int sonic = 0;
+    double volt = 0;
+    int pwml = 0;
+    int pwmr = 0;
 };
 
 struct SensorDataOutput {
-    int pwml;
-    int pwmr;
-    float camera_yaw;
+    int pwml = 0;
+    int pwmr = 0;
+    double cameraYaw = 0.0f;
+    int numWaypoint = 0;
     std::string nrf;
 };
 
@@ -53,7 +55,7 @@ public:
     void sendData(const SensorDataOutput& sensor_data_output) {
         try {
             std::ostringstream oss;
-            oss << '<' << sensor_data_output.pwml << ',' << sensor_data_output.pwmr << ',' << sensor_data_output.camera_yaw << ',' << sensor_data_output.nrf << '>';
+            oss << '<' << sensor_data_output.pwml << ',' << sensor_data_output.pwmr << ',' << sensor_data_output.cameraYaw << ',' << sensor_data_output.nrf << '>';
             std::string data = oss.str();
             serial_.writeString(data.c_str());
             
@@ -66,7 +68,7 @@ public:
         char current_char;
         std::string data_from_arduino;
 
-        int timeout_read = 0;
+        int timeout_read;
 
         try {
             while(true) {
@@ -122,6 +124,8 @@ public:
         iss.ignore(std::numeric_limits<std::streamsize>::max(), ':');
         iss >> sensor_data_inp.roll;
         iss.ignore(std::numeric_limits<std::streamsize>::max(), ':');
+        iss >> sensor_data_inp.calibration;
+        iss.ignore(std::numeric_limits<std::streamsize>::max(), ':');
         std::getline(iss, sensor_data_inp.nrf, ',');
         iss.ignore(std::numeric_limits<std::streamsize>::max(), ':');
         iss >> sensor_data_inp.sonic;
@@ -141,4 +145,4 @@ private:
     serialib serial_;
 };
 
-#endif //__SERIALCOM_HPP
+#endif //SERIALCOM_HPP

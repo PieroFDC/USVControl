@@ -1,19 +1,19 @@
-#ifndef __FILTER_HPP
-#define __FILTER_HPP
+#ifndef FILTER_HPP
+#define FILTER_HPP
 
 class Filter {
 private:
-    float exponentialSmoothingFactor;       // Factor de suavizado exponencial
-    float previousMeasurement = 0;          // Variable privada para almacenar la medición anterior
+    double exponentialSmoothingFactor;       // Factor de suavizado exponencial
+    double previousMeasurement = 0;          // Variable privada para almacenar la medición anterior
 
 public:
-    Filter(float smoothingFactor) : exponentialSmoothingFactor(smoothingFactor) {}
+    explicit Filter(double smoothingFactor) : exponentialSmoothingFactor(smoothingFactor) {}
 
-    float filterData(float measurement) {
-        float smoothedValue = (exponentialSmoothingFactor * measurement) + ((1 - exponentialSmoothingFactor) * previousMeasurement);
+    double filterData(double measurement) {
+        double smoothedValue = (exponentialSmoothingFactor * measurement) + ((1 - exponentialSmoothingFactor) * previousMeasurement);
         previousMeasurement = smoothedValue;
         return smoothedValue;
     }
 };
 
-#endif //__FILTER_HPP
+#endif //FILTER_HPP

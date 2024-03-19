@@ -1,20 +1,22 @@
 #include "main.hpp"
 
 struct ControllerOutput {
-    bool detection;
+    bool detection = false;
     std::pair<float, float> motors;
 };
 
 void course_controller_thread(std::queue<ControllerOutput>& resultQueue,
                                     std::mutex& mutex,
                                     std::condition_variable& cv,
-                                    std::atomic<float>& EOvalue) {
+                                    std::atomic<double>& EOvalue,
+                                    std::atomic<bool>& serialComStatus,
+                                    std::atomic<bool>& running) {
 
     CourseController courseController;
     ControllerOutput controller_output = {true, {1500, 1500}};
 
-    while(true) {
-        float current_eo_value = EOvalue.load();
+    while(serialComStatus.load() || running) {
+        double current_eo_value = EOvalue.load();
 
         controller_output.motors = courseController.calculateMotors(current_eo_value);
 
@@ -29,10 +31,11 @@ void course_controller_thread(std::queue<ControllerOutput>& resultQueue,
 
 void obstacle_controller_thread(std::queue<ControllerOutput>& resultQueue,
                                     std::mutex& mutex,
-                                    std::condition_variable& cv) {
+                                    std::condition_variable& cv,
+                                    std::atomic<bool>& running) {
 
     int max_distance_obstacle = 1;
-    bool init_lidar = false;
+    bool init_lidar;
     
     ObstacleController obstacleController;
     ControllerOutput controller_output = {false, {1500, 1500}};
@@ -47,7 +50,7 @@ void obstacle_controller_thread(std::queue<ControllerOutput>& resultQueue,
         try {
             lidar_data = lidar_sensor.RunLidar(max_distance_obstacle);
 
-            if(!(lidar_data.first || lidar_data.second)) {
+            if(!(static_cast<bool>(lidar_data.first) || static_cast<bool>(lidar_data.second))) {
                 controller_output.motors = {1500, 1500};
                 controller_output.detection = false;
             } else {
@@ -66,12 +69,13 @@ void obstacle_controller_thread(std::queue<ControllerOutput>& resultQueue,
 
         cv.notify_one();
 
-    } while(init_lidar);
+    } while(init_lidar || running);
 }
 
 void collection_controller_thread(std::queue<ControllerOutput>& resultQueue,
                                     std::mutex& mutex,
-                                    std::condition_variable& cv) {
+                                    std::condition_variable& cv,
+                                    std::atomic<bool>& running) {
 
     CollectionController collectionController;
     ControllerOutput controller_output = {false, {1500, 1500}};
@@ -102,7 +106,7 @@ void collection_controller_thread(std::queue<ControllerOutput>& resultQueue,
             cap >> frame;
             center = detector.detectLoop(frame);
 
-            if(center.first && center.second) {
+            if(static_cast<bool>(center.first) && static_cast<bool>(center.second)) {
                 controller_output.detection = true;
                 controller_output.motors = collectionController.calculateMotors(center);
             } else {
@@ -126,13 +130,15 @@ void collection_controller_thread(std::queue<ControllerOutput>& resultQueue,
 
         cv.notify_one();
 
-    } while(camera_ok && !frame.empty());
+    } while((camera_ok && !frame.empty()) || running);
  }
 
 int main() {
     Config project_config = readYAML();
 
-    std::cout << project_config.Collection << " : " << project_config.Course << " : " << project_config.Obstacle << std::endl;
+    float declination_magnet = get_declination(project_config.Latitude, project_config.Longitude);
+
+    std::cout << "La declinación magnética es: " << declination_magnet << std::endl;
 
     std::thread course_thread;
     std::thread obstacle_thread;
@@ -154,7 +160,10 @@ int main() {
     std::condition_variable cv_obstacle;
     std::condition_variable cv_collection;
 
-    std::atomic<float> input_eo(0);
+    std::atomic<double> input_eo(0);
+    std::atomic<bool> serialComStatus(true);
+
+    std::atomic<bool> running(true);
 
     if(project_config.Course) {
         course_thread = std::thread(
@@ -162,8 +171,11 @@ int main() {
             std::ref(result_queue_course),
             std::ref(mutex_course),
             std::ref(cv_course),
-            std::ref(input_eo)
+            std::ref(input_eo),
+            std::ref(serialComStatus),
+            std::ref(running)
         );
+        std::cout << "Course Control Thread ID: " << course_thread.get_id() << std::endl;
     }
 
     if(project_config.Obstacle) {
@@ -171,8 +183,10 @@ int main() {
             obstacle_controller_thread,
             std::ref(result_queue_obstacle),
             std::ref(mutex_obstacle),
-            std::ref(cv_obstacle)
+            std::ref(cv_obstacle),
+            std::ref(running)
         );
+        std::cout << "Obstacle Control Thread ID: " << obstacle_thread.get_id() << std::endl;
     }
 
     if(project_config.Collection) {
@@ -180,34 +194,37 @@ int main() {
             collection_controller_thread,
             std::ref(result_queue_collection),
             std::ref(mutex_collection),
-            std::ref(cv_collection)
+            std::ref(cv_collection),
+            std::ref(running)
         );
+        std::cout << "Collection Control Thread ID: " << collection_thread.get_id() << std::endl;
     }
-    
-    bool obstacle_thread_exec = true;
-    bool collection_thread_exec = true;
 
     std::chrono::milliseconds timeout_read(1);
 
-    Filter filter(0.3);
+    Filter filterPwml(0.3);
+    Filter filterPwmr(0.3);
 
-    float filt_value;
+    std::pair<double, double> motorOutput = {1500, 1500};
 
+    Waypoints waypoints;
     SerialCommunication serialComm;
 
     SensorDataInput sdatainp;
     SensorDataOutput sdataout;
 
-    sdataout.camera_yaw = 78.0;
+    sdataout.cameraYaw = 78.0;
     sdataout.nrf = "nrf";
     sdataout.pwml = 1500;
     sdataout.pwmr = 1500;
 
+    std::pair<double, double> actualWaypoint;
+    double heading;
+    double eo;
+
     serialComm.sendData(sdataout);
 
     while(true) {
-        auto start_time_exec = std::chrono::high_resolution_clock::now(); 
-
         while(true) {
             try {
                 sdatainp = serialComm.receiveData();   
@@ -218,7 +235,21 @@ int main() {
             }
         }
 
-        input_eo.store(sdatainp.yaw);
+        heading = correctAngle(declination_magnet, sdatainp.yaw);
+
+        if(sdatainp.nrf == "rh")
+            waypoints.setReturnHome();
+
+        waypoints.setUSVCoordinates(sdatainp.lat, sdatainp.lon);
+        sdataout.numWaypoint = waypoints.getWaypointStatus();
+        actualWaypoint = waypoints.getActualWaypoint();
+
+        if(sdataout.numWaypoint == -1)
+            break;
+
+        eo = angleBetweenVectors(sdatainp.lat, sdatainp.lon, heading, actualWaypoint.first, actualWaypoint.second);
+
+        input_eo.store(eo);
 
         if(project_config.Course) {
             std::unique_lock<std::mutex> lock(mutex_course);
@@ -268,23 +299,38 @@ int main() {
             }
         }
 
-        // filt_value = filter.filterData(output_course.motors.first);
+        if(output_obstacle.detection) {
+            motorOutput.first = output_obstacle.motors.first;
+            motorOutput.second = output_obstacle.motors.second;
+        } else if(output_collection.detection) {
+            motorOutput.first = output_collection.motors.first;
+            motorOutput.second = output_collection.motors.second;
+        } else if(project_config.Course) {
+            motorOutput.first = output_course.motors.first;
+            motorOutput.second = output_course.motors.second;
+        }
+
+        sdataout.pwml = static_cast<int>(filterPwml.filterData(motorOutput.first));
+        sdataout.pwmr = static_cast<int>(filterPwmr.filterData(motorOutput.second));
 
         // std::cout << "\033[2J\033[1;1H"; // Clear console
-        std::cout << "YAW: " << sdatainp.yaw << std::endl;
-        // std::cout << output_course.motors.first << " : " << filt_value << std::endl;
-        // std::cout << "Resultado leído del programa Course: " << output_course.motors.first << " : " << output_course.motors.second << " : " << output_course.detection << std::endl;
-        // std::cout << "Resultado leído del programa Obstacle: " << output_obstacle.motors.first << " : " << output_obstacle.motors.second << " : " << output_obstacle.detection << std::endl;
-        // std::cout << "Resultado leído del programa Collection: " << output_collection.motors.first << " : " << output_collection.motors.second << " : " << output_collection.detection << std::endl;
+        std::cout << "Resultado leído del programa Course: " << output_course.motors.first << " : " << output_course.motors.second << " : " << output_course.detection << std::endl;
+        std::cout << "Resultado leído del programa Obstacle: " << output_obstacle.motors.first << " : " << output_obstacle.motors.second << " : " << output_obstacle.detection << std::endl;
+        std::cout << "Resultado leído del programa Collection: " << output_collection.motors.first << " : " << output_collection.motors.second << " : " << output_collection.detection << std::endl;
 
-        serialComm.sendData(sdataout);     
-
-        auto end_time_exec = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time_exec - start_time_exec);
-
-        std::cout << "duration: " << duration.count() << std::endl;
-
+        serialComm.sendData(sdataout);
     }
-    std::cout << "Fin del programa ..." << std::endl;
+
+    running = false;
+
+    if (course_thread.joinable())
+        course_thread.join();
+
+    if (obstacle_thread.joinable())
+        obstacle_thread.join();
+
+    if (collection_thread.joinable())
+        collection_thread.join();
+
     return 0;
 }
