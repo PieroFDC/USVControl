@@ -55,7 +55,7 @@ public:
     void sendData(const SensorDataOutput& sensor_data_output) {
         try {
             std::ostringstream oss;
-            oss << '<' << sensor_data_output.pwml << ',' << sensor_data_output.pwmr << ',' << sensor_data_output.cameraYaw << ',' << sensor_data_output.nrf << '>';
+            oss << '<' << sensor_data_output.pwml << ',' << sensor_data_output.pwmr << ',' << sensor_data_output.cameraYaw << ',' << sensor_data_output.numWaypoint << ',' << sensor_data_output.nrf << '>';
             std::string data = oss.str();
             serial_.writeString(data.c_str());
             
