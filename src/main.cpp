@@ -213,10 +213,12 @@ int main() {
     SensorDataInput sdatainp;
     SensorDataOutput sdataout;
 
-    sdataout.cameraYaw = 78.0;
-    sdataout.nrf = "nrf";
     sdataout.pwml = 1500;
     sdataout.pwmr = 1500;
+    sdataout.cameraYaw = 78.0;
+    sdataout.numWaypoint = 0;
+    sdataout.nrf = "nrf";
+
 
     std::pair<double, double> actualWaypoint;
     double heading;
