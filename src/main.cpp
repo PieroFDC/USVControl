@@ -323,7 +323,7 @@ int main() {
         serialComm.sendData(sdataout);
     }
 
-    running = false;
+    running.store(false);
 
     if (course_thread.joinable())
         course_thread.join();
