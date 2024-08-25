@@ -1,34 +1,41 @@
 #ifndef FUNCTIONUTILS_HPP
 #define FUNCTIONUTILS_HPP
 
+#include <iostream>
 #include <cmath>
 
-double angleBetweenVectors(double x1, double y1, double heading, double x2, double y2) {
-    double theta = heading;
-    theta += 90;
+constexpr double DEG_TO_RAD = M_PI / 180;
+constexpr double RAD_TO_DEG = 180 / M_PI;
 
-    if(theta > 180) {
-        theta -= 360;
+double calculateBearing(double lat1, double lon1, double lat2, double lon2) {
+    lat1 *= DEG_TO_RAD;
+    lon1 *= DEG_TO_RAD;
+    lat2 *= DEG_TO_RAD;
+    lon2 *= DEG_TO_RAD;
+
+    double deltaLon = lon2 - lon1;
+
+    double y = sin(deltaLon) * cos(lat2);
+    double x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(deltaLon);
+    double bearing = atan2(y, x) * RAD_TO_DEG;  // Convertir a grados
+
+    bearing = fmod((bearing + 360), 360);
+
+    return bearing;
+}
+
+double angleBetweenVectors(double lat1, double lon1, double heading, double lat2, double lon2) {
+    double bearing = calculateBearing(lat1, lon1, lat2, lon2);
+
+    double angle = bearing - heading;
+
+    if (angle > 180) {
+        angle -= 360;
+    } else if (angle < -180) {
+        angle += 360;
     }
 
-    theta = theta * (M_PI / 180);
-
-    double AB[2] = {x2-x1, y2-y1};
-    double AD[2] = {cos(theta), sin(theta)};
-
-    double cosBeta = (AD[0] * AB[0] + AD[1] * AB[1]) / (sqrt(AD[0] * AD[0] + AD[1] * AD[1]) * sqrt(AB[0] * AB[0] + AB[1] * AB[1]));
-    double beta = acos(cosBeta);
-    double cross = AD[0] * AB[1] - AD[1] * AB[0];
-    int sign;
-
-    if (cross >= 0) {
-        sign = 1;
-    } else {
-        sign = -1;
-    }
-
-    double angle = sign * beta * 180 / M_PI;
-    return angle;
+    return -angle;
 }
 
 double correctAngle(double declination, double angle) {

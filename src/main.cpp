@@ -36,7 +36,7 @@ void obstacle_controller_thread(std::queue<ControllerOutput>& resultQueue,
 
     int max_distance_obstacle = 1;
     bool init_lidar;
-    
+
     ObstacleController obstacleController;
     ControllerOutput controller_output = {false, {1500, 1500}};
 
@@ -45,7 +45,7 @@ void obstacle_controller_thread(std::queue<ControllerOutput>& resultQueue,
 
 
     init_lidar = lidar_sensor.InitializeLidar();
-    
+
     do {
         try {
             lidar_data = lidar_sensor.RunLidar(max_distance_obstacle);
@@ -85,7 +85,7 @@ void collection_controller_thread(std::queue<ControllerOutput>& resultQueue,
         MODEL_BIN_PATH.c_str(),
         352,
         352
-    ); 
+    );
 
     cv::VideoCapture cap(0);
     cv::Mat frame;
@@ -113,7 +113,7 @@ void collection_controller_thread(std::queue<ControllerOutput>& resultQueue,
                 controller_output.detection = false;
                 controller_output.motors = {1500, 1500};
             }
-            
+
 
         } catch (const std::exception& e) {
             std::cerr << "Error al detectar las imágenes." << std::endl;
@@ -227,7 +227,7 @@ int main() {
     while(true) {
         while(true) {
             try {
-                sdatainp = serialComm.receiveData();   
+                sdatainp = serialComm.receiveData();
                 break;
             } catch (const std::exception& e) {
                 std::cerr << "Error receiving data: " << e.what() << std::endl;
